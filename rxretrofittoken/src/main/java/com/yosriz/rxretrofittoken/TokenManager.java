@@ -22,6 +22,14 @@ class TokenManager {
     private final Object tokenLock = new Object();
     private String token;
     private final int maxRetries;
+    private TokenProvider tokenProvider = new TokenProvider() {
+        @Override
+        public String getToken() {
+            synchronized (tokenLock) {
+                return token;
+            }
+        }
+    };
 
     TokenManager(Single<String> tokenObservable,
                  Predicate<Throwable> expirationPredicate, int maxRetries) {
@@ -44,10 +52,8 @@ class TokenManager {
         });
     }
 
-    String getToken() {
-        synchronized (tokenLock) {
-            return token;
-        }
+    TokenProvider getTokenProvider() {
+        return tokenProvider;
     }
 
     Observable getTokenizedObservable(Observable<?> requestObservable) {

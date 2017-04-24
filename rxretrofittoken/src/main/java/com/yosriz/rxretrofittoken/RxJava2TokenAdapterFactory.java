@@ -8,21 +8,19 @@ import io.reactivex.Flowable;
 import io.reactivex.Maybe;
 import io.reactivex.Observable;
 import io.reactivex.Single;
-import io.reactivex.functions.Predicate;
 import retrofit2.Call;
 import retrofit2.CallAdapter;
 import retrofit2.Retrofit;
 import retrofit2.adapter.rxjava2.RxJava2CallAdapterFactory;
 
-public class RxJavaTokenAdapterFactory extends CallAdapter.Factory {
+public class RxJava2TokenAdapterFactory extends CallAdapter.Factory {
 
     private RxJava2CallAdapterFactory wrappedCallAdapterFactory;
     private TokenManager tokenManager;
 
-    private RxJavaTokenAdapterFactory(Single<String> tokenSingle,
-                                      Predicate<Throwable> tokenExpirationPredicate,
-                                      int maxRetries) {
-        tokenManager = new TokenManager(tokenSingle, tokenExpirationPredicate, maxRetries);
+    RxJava2TokenAdapterFactory(TokenManager tokenManager) {
+        this.tokenManager = tokenManager;
+        this.wrappedCallAdapterFactory = RxJava2CallAdapterFactory.create();
     }
 
     @Override
@@ -41,31 +39,6 @@ public class RxJavaTokenAdapterFactory extends CallAdapter.Factory {
 
 
         return new TokenCallAdapter(tokenManager, callAdapter, isCompletable, isFlowable, isMaybe, isSingle);
-    }
-
-    public static class Builder {
-        private Single<String> tokenSingle;
-        private Predicate<Throwable> tokenExpirationPredicate;
-        private int maxRetries;
-
-        public Builder setTokenReteriver(Single<String> reteriver) {
-            tokenSingle = reteriver;
-            return this;
-        }
-
-        public Builder setTokenExpirationChecker(Predicate<Throwable> checker) {
-            tokenExpirationPredicate = checker;
-            return this;
-        }
-
-        public Builder setMaxRetries(int maxRetries) {
-            this.maxRetries = maxRetries;
-            return this;
-        }
-
-        public RxJavaTokenAdapterFactory build() {
-            return new RxJavaTokenAdapterFactory(tokenSingle, tokenExpirationPredicate, maxRetries);
-        }
     }
 
     private static class TokenCallAdapter<R> implements CallAdapter<R, Object> {

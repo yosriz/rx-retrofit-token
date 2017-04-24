@@ -9,11 +9,11 @@ import okhttp3.HttpUrl;
 import okhttp3.Request;
 import okhttp3.Response;
 
-public class QueryStringTokenInterceptor extends TokenInterceptor {
+public class QueryParamsTokenInterceptor extends TokenInterceptor {
 
     private final String authParam;
 
-    QueryStringTokenInterceptor(@NonNull String authParam, @NonNull TokenProvider tokenProvider,
+    QueryParamsTokenInterceptor(@NonNull String authParam, @NonNull TokenProvider tokenProvider,
                                 @Nullable Predicate<Request> requestFilter) {
         super(tokenProvider, requestFilter);
         this.authParam = authParam;
