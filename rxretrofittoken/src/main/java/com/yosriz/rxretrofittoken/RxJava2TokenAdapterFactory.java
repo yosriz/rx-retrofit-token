@@ -50,7 +50,7 @@ public class RxJava2TokenAdapterFactory extends CallAdapter.Factory {
         private final boolean isMaybe;
         private final boolean isSingle;
 
-        public TokenCallAdapter(TokenManager tokenManager,
+        TokenCallAdapter(TokenManager tokenManager,
                                 CallAdapter callAdapter, boolean isCompletable,
                                 boolean isFlowable, boolean isMaybe, boolean isSingle) {
             this.tokenManager = tokenManager;
@@ -66,19 +66,20 @@ public class RxJava2TokenAdapterFactory extends CallAdapter.Factory {
             return wrapped.responseType();
         }
 
+        @SuppressWarnings("unchecked")
         @Override
         public Object adapt(Call<R> call) {
             if (isCompletable) {
-                return tokenManager.getTokenizedObservable((Completable) wrapped.adapt(call));
+                return tokenManager.getTokenizedCompletable((Completable) wrapped.adapt(call));
             }
             if (isFlowable) {
-                return tokenManager.getTokenizedObservable((Flowable) wrapped.adapt(call));
+                return tokenManager.getTokenizedFlowable((Flowable) wrapped.adapt(call));
             }
             if (isMaybe) {
-                return tokenManager.getTokenizedObservable((Maybe) wrapped.adapt(call));
+                return tokenManager.getTokenizedMaybe((Maybe) wrapped.adapt(call));
             }
             if (isSingle) {
-                return tokenManager.getTokenizedObservable((Single) wrapped.adapt(call));
+                return tokenManager.getTokenizedSingle((Single) wrapped.adapt(call));
             }
             return tokenManager.getTokenizedObservable((Observable) wrapped.adapt(call));
         }

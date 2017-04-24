@@ -1,5 +1,7 @@
 package com.yosriz.rxretrofittoken;
 
+import android.support.annotation.NonNull;
+
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import io.reactivex.Completable;
@@ -7,6 +9,7 @@ import io.reactivex.Flowable;
 import io.reactivex.Maybe;
 import io.reactivex.Observable;
 import io.reactivex.Single;
+import io.reactivex.functions.BiPredicate;
 import io.reactivex.functions.Predicate;
 
 
@@ -57,67 +60,48 @@ class TokenManager {
     }
 
     Observable getTokenizedObservable(Observable<?> requestObservable) {
-        return cachedTokenObservable
-                .toCompletable()
+        return getCachedTokenCompletable()
                 .andThen(requestObservable)
-                .retry((integer, throwable) -> {
-                    if (integer <= maxRetries && expirationPredicate.test(throwable)) {
-                        expired.set(true);
-                        return true;
-                    }
-                    return false;
-                });
+                .retry(createTokenRetryPredicate());
     }
 
-    public Completable getTokenizedObservable(Completable requestCompletable) {
+    private Completable getCachedTokenCompletable() {
         return cachedTokenObservable
-                .toCompletable()
+                .toCompletable();
+    }
+
+    @NonNull
+    private BiPredicate<Integer, Throwable> createTokenRetryPredicate() {
+        return (integer, throwable) -> {
+            if (integer <= maxRetries && expirationPredicate.test(throwable)) {
+                expired.set(true);
+                return true;
+            }
+            return false;
+        };
+    }
+
+    Completable getTokenizedCompletable(Completable requestCompletable) {
+        return getCachedTokenCompletable()
                 .andThen(requestCompletable)
-                .retry((integer, throwable) -> {
-                    if (integer <= maxRetries && expirationPredicate.test(throwable)) {
-                        expired.set(true);
-                        return true;
-                    }
-                    return false;
-                });
+                .retry(createTokenRetryPredicate());
     }
 
-    public Flowable<?> getTokenizedObservable(Flowable<?> requestFlowable) {
-        return cachedTokenObservable
-                .toCompletable()
+    Flowable<?> getTokenizedFlowable(Flowable<?> requestFlowable) {
+        return getCachedTokenCompletable()
                 .andThen(requestFlowable)
-                .retry((integer, throwable) -> {
-                    if (integer <= maxRetries && expirationPredicate.test(throwable)) {
-                        expired.set(true);
-                        return true;
-                    }
-                    return false;
-                });
+                .retry(createTokenRetryPredicate());
     }
 
-    public Maybe<?> getTokenizedObservable(Maybe<?> requestMaybe) {
-        return cachedTokenObservable
-                .toCompletable()
+    Maybe<?> getTokenizedMaybe(Maybe<?> requestMaybe) {
+        return getCachedTokenCompletable()
                 .andThen(requestMaybe)
-                .retry((integer, throwable) -> {
-                    if (integer <= maxRetries && expirationPredicate.test(throwable)) {
-                        expired.set(true);
-                        return true;
-                    }
-                    return false;
-                });
+                .retry(createTokenRetryPredicate());
     }
 
-    public Single<?> getTokenizedObservable(Single<?> requestSingle) {
-        return cachedTokenObservable
-                .toCompletable()
+    Single<?> getTokenizedSingle(Single<?> requestSingle) {
+        return getCachedTokenCompletable()
                 .andThen(requestSingle)
-                .retry((integer, throwable) -> {
-                    if (integer <= maxRetries && expirationPredicate.test(throwable)) {
-                        expired.set(true);
-                        return true;
-                    }
-                    return false;
-                });
+                .retry(createTokenRetryPredicate());
     }
 }
