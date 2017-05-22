@@ -51,8 +51,8 @@ public class RetrofitTokenRefresher {
         private Predicate<Throwable> tokenExpirationPredicate;
         private int maxRetries = 1;
 
-        public Builder setTokenRetriever(Single<String> retriever) {
-            tokenSingle = retriever;
+        public Builder setTokenRequest(Single<String> requestSingle) {
+            tokenSingle = requestSingle;
             return this;
         }
 
