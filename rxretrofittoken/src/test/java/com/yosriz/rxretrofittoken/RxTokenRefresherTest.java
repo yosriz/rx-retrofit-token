@@ -7,7 +7,14 @@ import com.google.gson.Gson;
 import org.junit.Before;
 import org.junit.Test;
 
+import java.util.concurrent.Callable;
+
+import io.reactivex.Observable;
+import io.reactivex.Scheduler;
 import io.reactivex.Single;
+import io.reactivex.observers.TestObserver;
+import io.reactivex.schedulers.Schedulers;
+import io.reactivex.subscribers.TestSubscriber;
 import okhttp3.OkHttpClient;
 import okhttp3.mockwebserver.MockResponse;
 import okhttp3.mockwebserver.MockWebServer;
@@ -26,6 +33,10 @@ public class RxTokenRefresherTest {
 
     private Retrofit retrofit;
     private MockWebServer mockWebServer;
+    private SingleProbe<String> refreshTokenProbe = new SingleProbe<>();
+    private Single<String> refreshTokenSingle = Single.just("fake_refresh_token")
+            .compose(refreshTokenProbe);
+
 
     @Before
     public void setup() {
@@ -34,7 +45,7 @@ public class RxTokenRefresherTest {
                 .setTokenExpirationChecker(throwable -> throwable instanceof HttpException && ((HttpException) throwable).code() == 401)
                 .setMaxRetries(3)
                 .setAuth(RetrofitTokenRefresher.Builder.AuthMethod.HEADERS, "auth")
-                .setTokenRequest(Single.just("fake_refresh_token"))
+                .setTokenRequest(refreshTokenSingle)
                 .build();
         mockWebServer = new MockWebServer();
         retrofit = new Retrofit.Builder()
@@ -49,7 +60,7 @@ public class RxTokenRefresherTest {
     }
 
     @Test
-    public void no_auth_error_succeed() {
+    public void no_auth_error_succeed() throws InterruptedException {
         FakeAPIService fakeAPIService = retrofit.create(FakeAPIService.class);
         SomeFakeObject someFakeObject = getSomeFakeObject();
         mockWebServer.enqueue(
@@ -57,8 +68,8 @@ public class RxTokenRefresherTest {
         );
         fakeAPIService.getSomething(42)
                 .test()
-                .assertValue(result -> someFakeObject.anotherData == result.anotherData && someFakeObject.someData.equals(result.someData))
-                .awaitTerminalEvent();
+                .await()
+                .assertValue(result -> someFakeObject.anotherData == result.anotherData && someFakeObject.someData.equals(result.someData));
     }
 
     private MockResponse getFakeObjectResponse(SomeFakeObject someFakeObject) {
@@ -77,7 +88,7 @@ public class RxTokenRefresherTest {
     }
 
     @Test
-    public void unauthorized_retry_count_below_threshold_expect_value() {
+    public void unauthorized_retry_count_below_threshold_expect_value() throws InterruptedException {
         FakeAPIService fakeAPIService = retrofit.create(FakeAPIService.class);
         SomeFakeObject someFakeObject = getSomeFakeObject();
         MockResponse mockUnauthorizedResponse = new MockResponse()
@@ -92,15 +103,14 @@ public class RxTokenRefresherTest {
 
         fakeAPIService.getSomething(42)
                 .test()
-                .assertValue(result -> someFakeObject.anotherData == result.anotherData && someFakeObject.someData.equals(result.someData))
-                .awaitTerminalEvent();
+                .await()
+                .assertValue(result -> someFakeObject.anotherData == result.anotherData && someFakeObject.someData.equals(result.someData));
     }
 
 
     @Test
-    public void unauthorized_retry_count_above_threshold_expect_error() {
+    public void unauthorized_retry_count_above_threshold_expect_error() throws InterruptedException {
         FakeAPIService fakeAPIService = retrofit.create(FakeAPIService.class);
-        SomeFakeObject someFakeObject = getSomeFakeObject();
         MockResponse mockUnauthorizedResponse = new MockResponse()
                 .setResponseCode(401);
         MockResponse mockErrorResponse = new MockResponse()
@@ -113,8 +123,39 @@ public class RxTokenRefresherTest {
 
         fakeAPIService.getSomething(42)
                 .test()
-                .assertError(throwable -> throwable instanceof HttpException && ((HttpException) throwable).code() == 404)
-                .awaitTerminalEvent();
+                .await()
+                .assertError(throwable -> throwable instanceof HttpException && ((HttpException) throwable).code() == 404);
     }
+
+    @Test
+    public void unauthorized_twice_expect_error() throws InterruptedException {
+        FakeAPIService fakeAPIService = retrofit.create(FakeAPIService.class);
+        MockResponse mockUnauthorizedResponse = new MockResponse()
+                .setResponseCode(401);
+
+        mockWebServer.enqueue(mockUnauthorizedResponse);
+        mockWebServer.enqueue(mockUnauthorizedResponse);
+
+        fakeAPIService.getSomething(42)
+                .test()
+                .await()
+                .assertError(throwable -> throwable instanceof HttpException && ((HttpException) throwable).code() == 401);
+    }
+
+    @Test
+    public void multiple_requests_expect_cache_use() {
+        FakeAPIService fakeAPIService = retrofit.create(FakeAPIService.class);
+        SomeFakeObject someFakeObject = getSomeFakeObject();
+        mockWebServer.enqueue(getFakeObjectResponse(someFakeObject));
+        mockWebServer.enqueue(getFakeObjectResponse(someFakeObject));
+
+        TestObserver<Object> testObserver = TestObserver.create();
+        fakeAPIService.getSomething(42)
+                .subscribe(testObserver);
+        fakeAPIService.getSomethingElse(42)
+                .subscribe(testObserver);
+        refreshTokenProbe.assertNotSubscribed();
+    }
+
 
 }
