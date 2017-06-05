@@ -73,9 +73,14 @@ class TokenManager {
     @NonNull
     private BiPredicate<Integer, Throwable> createTokenRetryPredicate() {
         return (retryCount, throwable) -> {
-            if (retryCount == 1 && expirationPredicate.test(throwable)) {
-                expired.set(true);
-                return true;
+            boolean tokenExpired = expirationPredicate.test(throwable);
+            if (tokenExpired) {
+                if (retryCount == 1) {
+                    expired.set(true);
+                    return true;
+                } else {
+                    return false;
+                }
             }
             return retryCount <= maxRetries;
         };
