@@ -1,4 +1,4 @@
-package com.yosriz.rxretrofittoken;
+package com.yosriz.rxretrofittoken.fakeapi;
 
 
 import io.reactivex.Observable;
@@ -13,4 +13,5 @@ public interface FakeAPIService {
 
     @POST("somethingelse/{id}")
     Observable<SomeFakeObject> getSomethingElse(@Path("id") long someId);
+
 }

@@ -1,20 +1,13 @@
 package com.yosriz.rxretrofittoken;
 
-import android.support.annotation.NonNull;
-
-import com.google.gson.Gson;
+import com.yosriz.rxretrofittoken.fakeapi.FakeAPIService;
+import com.yosriz.rxretrofittoken.fakeapi.SomeFakeObject;
+import com.yosriz.rxretrofittoken.testutils.SingleProbe;
 
 import org.junit.Before;
 import org.junit.Test;
 
-import java.util.concurrent.Callable;
-
-import io.reactivex.Observable;
-import io.reactivex.Scheduler;
 import io.reactivex.Single;
-import io.reactivex.observers.TestObserver;
-import io.reactivex.schedulers.Schedulers;
-import io.reactivex.subscribers.TestSubscriber;
 import okhttp3.OkHttpClient;
 import okhttp3.mockwebserver.MockResponse;
 import okhttp3.mockwebserver.MockWebServer;
@@ -22,13 +15,9 @@ import retrofit2.HttpException;
 import retrofit2.Retrofit;
 import retrofit2.converter.gson.GsonConverterFactory;
 
-import static org.junit.Assert.*;
+import static com.yosriz.rxretrofittoken.testutils.APITools.getFakeObjectResponse;
+import static com.yosriz.rxretrofittoken.testutils.APITools.getSomeFakeObject;
 
-/**
- * Example local unit test, which will execute on the development machine (host).
- *
- * @see <a href="http://d.android.com/tools/testing">Testing documentation</a>
- */
 public class RxTokenRefresherTest {
 
     private Retrofit retrofit;
@@ -70,21 +59,6 @@ public class RxTokenRefresherTest {
                 .test()
                 .await()
                 .assertValue(result -> someFakeObject.anotherData == result.anotherData && someFakeObject.someData.equals(result.someData));
-    }
-
-    private MockResponse getFakeObjectResponse(SomeFakeObject someFakeObject) {
-        Gson gson = new Gson();
-        return new MockResponse()
-                .setResponseCode(200)
-                .setBody(gson.toJson(someFakeObject));
-    }
-
-    @NonNull
-    private SomeFakeObject getSomeFakeObject() {
-        SomeFakeObject someFakeObject = new SomeFakeObject();
-        someFakeObject.someData = "my_fake_data";
-        someFakeObject.anotherData = 42;
-        return someFakeObject;
     }
 
     @Test
@@ -143,18 +117,29 @@ public class RxTokenRefresherTest {
     }
 
     @Test
+    public void first_query_expect_token_refresh() {
+        FakeAPIService fakeAPIService = retrofit.create(FakeAPIService.class);
+        SomeFakeObject someFakeObject = getSomeFakeObject();
+        mockWebServer.enqueue(getFakeObjectResponse(someFakeObject));
+
+        fakeAPIService.getSomething(42)
+                .subscribe();
+        refreshTokenProbe.assertSubscribed();
+    }
+
+    @Test
     public void multiple_requests_expect_cache_use() {
         FakeAPIService fakeAPIService = retrofit.create(FakeAPIService.class);
         SomeFakeObject someFakeObject = getSomeFakeObject();
         mockWebServer.enqueue(getFakeObjectResponse(someFakeObject));
         mockWebServer.enqueue(getFakeObjectResponse(someFakeObject));
 
-        TestObserver<Object> testObserver = TestObserver.create();
         fakeAPIService.getSomething(42)
-                .subscribe(testObserver);
+                .subscribe();
+        refreshTokenProbe.assertSubscribed();
         fakeAPIService.getSomethingElse(42)
-                .subscribe(testObserver);
-        refreshTokenProbe.assertNotSubscribed();
+                .subscribe();
+        refreshTokenProbe.assertSubscribedCount(1);
     }
 
 

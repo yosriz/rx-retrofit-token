@@ -1,4 +1,4 @@
-package com.yosriz.rxretrofittoken;
+package com.yosriz.rxretrofittoken.testutils;
 
 
 import org.junit.Assert;
